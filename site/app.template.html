@@ -35,11 +35,16 @@
   .tile .tlbl{ display:block; font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); font-weight:600; }
   .tile b{ display:block; font-size:26px; color:var(--navy); line-height:1.25; margin-top:2px; }
   .tile small{ color:var(--muted); font-size:12px; }
+  .tile .pctbig{ color:var(--blue); font-weight:700; }
 
   .card-head{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
   .card-head h2{ margin:0; font-size:18px; }
   .chart-scroll{ max-height:72vh; overflow-y:auto; }
   .chart-box{ position:relative; }
+
+  .splitgrid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .splitgrid h3{ margin:0 0 10px; font-size:16px; }
+  .mini-box{ position:relative; height:280px; }
 
   table{ width:100%; border-collapse:collapse; font-size:14px; }
   th,td{ padding:9px 8px; border-bottom:1px solid var(--line); }
@@ -49,7 +54,7 @@
   .dot{ display:inline-block; width:11px; height:11px; border-radius:3px; }
   .empty{ color:var(--muted); font-size:14px; padding:30px 0; text-align:center; }
   .ft{ text-align:center; color:var(--muted); font-size:12px; padding:10px 0 30px; }
-  @media(max-width:620px){ .tiles{ grid-template-columns:1fr; } .hdr h1{ font-size:22px; } .flbl{ width:100%; flex-basis:100%; } }
+  @media(max-width:620px){ .tiles{ grid-template-columns:1fr; } .splitgrid{ grid-template-columns:1fr; } .hdr h1{ font-size:22px; } .flbl{ width:100%; flex-basis:100%; } }
 </style>
 </head>
 <body>
@@ -89,7 +94,13 @@
       <div class="empty" id="emptyMsg" style="display:none">Sin resultados para esta selección.</div>
     </section>
 
+    <section class="splitgrid">
+      <div class="card"><h3>Split por género</h3><div class="mini-box"><canvas id="genPie"></canvas></div></div>
+      <div class="card" id="catPieCard"><h3>Split por categoría</h3><div class="mini-box"><canvas id="catPie"></canvas></div></div>
+    </section>
+
     <section class="card">
+      <div class="card-head"><h2 id="tblTitle">Detalle por modelo</h2></div>
       <table id="tbl">
         <thead><tr><th>&nbsp;</th><th class="l">Modelo</th><th class="r">Unidades</th><th class="r" id="pctHead">%</th></tr></thead>
         <tbody></tbody>
@@ -108,8 +119,12 @@ const HAS_CAT = /*__HAS_CAT__*/true/*__END_HAS_CAT__*/;
 
 const QTY_LABEL = { compra:"Compra", extra:"Extra", cancel:"Cancel" };
 const state = { gender:null, categoria:null, qty:"compra", chart:"bar", search:"" };
-let chart = null;
+const charts = { main:null, gender:null, categoria:null };
 const fmt = n => n.toLocaleString("es-MX");
+
+// grand totals across the WHOLE order (used for the "% del total" KPI)
+const GRAND = { compra:0, extra:0, cancel:0 };
+for(const r of RECORDS){ GRAND.compra+=r.compra||0; GRAND.extra+=r.extra||0; GRAND.cancel+=r.cancel||0; }
 
 const BASE = ["#0b2c6f","#1763b6","#39a0ed","#e4002b","#f5a623","#16a085",
               "#8e44ad","#2c3e50","#e67e22","#27ae60","#c0392b","#5d6d7e"];
@@ -166,11 +181,44 @@ function filtered(){
     (state.categoria===null || r.categoria===state.categoria));
 }
 
-function modelTotals(recs, qty){
+function totalsBy(recs, key, qty){
   const m = new Map();
-  for(const r of recs){ m.set(r.modelo, (m.get(r.modelo)||0) + (r[qty]||0)); }
-  return [...m.entries()].map(([label,value])=>({label,value}))
-          .filter(r=>r.value>0).sort((a,b)=>b.value-a.value);
+  for(const r of recs){ m.set(r[key], (m.get(r[key])||0) + (r[qty]||0)); }
+  let rows = [...m.entries()].map(([label,value])=>({label,value}))
+              .filter(r=>r.value>0).sort((a,b)=>b.value-a.value);
+  const tot = rows.reduce((s,r)=>s+r.value,0) || 1;
+  rows.forEach(r=> r.share = r.value/tot*100);  // share within this breakdown (sums to 100%)
+  return rows;
+}
+
+// custom plugin: draw "value (pct%)" at the end of each horizontal bar
+function barLabelPlugin(rows){
+  return { id:"barLabels", afterDatasetsDraw(chart){
+    const ctx = chart.ctx, meta = chart.getDatasetMeta(0);
+    ctx.save();
+    ctx.font = "600 11px -apple-system,Segoe UI,Roboto,sans-serif";
+    ctx.fillStyle = "#1a1f2b"; ctx.textBaseline = "middle";
+    meta.data.forEach((el,i)=>{
+      ctx.fillText(`${fmt(rows[i].value)} · ${rows[i].pct.toFixed(1)}%`, el.x + 6, el.y);
+    });
+    ctx.restore();
+  }};
+}
+
+// custom plugin: draw % on pie/doughnut slices (≥6% only, to avoid clutter)
+function pieLabelPlugin(rows){
+  return { id:"pieLabels", afterDatasetsDraw(chart){
+    const ctx = chart.ctx, meta = chart.getDatasetMeta(0);
+    ctx.save();
+    ctx.fillStyle = "#fff"; ctx.font = "700 13px -apple-system,Segoe UI,sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    meta.data.forEach((arc,i)=>{
+      if(rows[i].share < 6) return;
+      const p = arc.tooltipPosition();
+      ctx.fillText(rows[i].share.toFixed(0) + "%", p.x, p.y);
+    });
+    ctx.restore();
+  }};
 }
 
 function render(){
@@ -180,66 +228,87 @@ function render(){
   //   Extra/Cancel tab -> shown against the total order quantity
   const compraBase = base.reduce((s,r)=>s+(r.compra||0),0) || 1;
 
-  let rows = modelTotals(base, state.qty);
+  let rows = totalsBy(base, "modelo", state.qty);
   rows.forEach(r=> r.pct = r.value/compraBase*100);
 
-  // summary tiles reflect the gender/categoria filter (not the search box)
+  // ---- KPI tiles ----
   const metricTotal = rows.reduce((s,r)=>s+r.value,0);
+  const pctOfOrder = metricTotal / (GRAND[state.qty] || 1) * 100;
   document.getElementById("tTotal").textContent = fmt(metricTotal);
-  document.getElementById("tMetric").textContent = QTY_LABEL[state.qty]
-      + (state.qty==="compra" ? "" : " · % del total ordenado");
+  document.getElementById("tMetric").innerHTML =
+      `${QTY_LABEL[state.qty]} · <span class="pctbig">${pctOfOrder.toFixed(1)}%</span> del total`;
   document.getElementById("tModels").textContent = rows.length;
   document.getElementById("tTop").textContent = rows[0] ? rows[0].label : "—";
   document.getElementById("tTopPct").textContent = rows[0]
       ? `${fmt(rows[0].value)} u · ${rows[0].pct.toFixed(1)}%` : "";
 
-  // search only narrows the chart + table display
+  // ---- main model chart (search narrows display only) ----
   const q = state.search.trim().toLowerCase();
   const disp = q ? rows.filter(r=>r.label.toLowerCase().includes(q)) : rows;
-
-  document.getElementById("chartTitle").textContent =
-      "Por modelo — " + QTY_LABEL[state.qty];
+  document.getElementById("chartTitle").textContent = "Por modelo — " + QTY_LABEL[state.qty];
   document.getElementById("pctHead").textContent =
       state.qty==="compra" ? "% selección" : "% del total ordenado";
-
-  drawChart(disp);
+  drawMainChart(disp);
   drawTable(disp, metricTotal, compraBase);
+
+  // ---- split pies (reflect the active filter + metric) ----
+  drawSplitPie("genPie", "gender", base);
+  if(HAS_CAT) drawSplitPie("catPie", "categoria", base);
 }
 
-function drawChart(rows){
+function drawMainChart(rows){
   const box = document.getElementById("chartBox");
   const cv = document.getElementById("chart");
   const empty = document.getElementById("emptyMsg");
-  if(chart){ chart.destroy(); chart = null; }
+  if(charts.main){ charts.main.destroy(); charts.main = null; }
   if(rows.length===0){ empty.style.display="block"; cv.style.display="none"; box.style.height="0px"; return; }
   empty.style.display="none"; cv.style.display="block";
 
   const labels = rows.map(r=>r.label);
   const values = rows.map(r=>r.value);
   const colors = rows.map((_,i)=>colorFor(i));
-  const tip = (i)=>` ${fmt(values[i])} u (${rows[i].pct.toFixed(1)}%)`;
 
   if(state.chart==="bar"){
-    box.style.height = Math.max(300, rows.length*26 + 30) + "px";
-    chart = new Chart(cv, {
+    box.style.height = Math.max(300, rows.length*28 + 30) + "px";
+    charts.main = new Chart(cv, {
       type:"bar",
       data:{ labels, datasets:[{ data:values, backgroundColor:colors, borderRadius:4 }]},
       options:{ indexAxis:"y", responsive:true, maintainAspectRatio:false,
+        layout:{ padding:{ right:8 } },
         plugins:{ legend:{display:false},
-          tooltip:{ callbacks:{ label:c=>tip(c.dataIndex) } } },
-        scales:{ x:{ beginAtZero:true, ticks:{ font:{size:11} } },
-                 y:{ ticks:{ font:{size:11}, autoSkip:false } } } }
+          tooltip:{ callbacks:{ label:c=>` ${fmt(rows[c.dataIndex].value)} u (${rows[c.dataIndex].pct.toFixed(1)}%)` } } },
+        scales:{ x:{ beginAtZero:true, grace:"16%", ticks:{ font:{size:11} } },
+                 y:{ ticks:{ font:{size:11}, autoSkip:false } } } },
+      plugins:[ barLabelPlugin(rows) ]
     });
   } else {
     box.style.height = "460px";
-    chart = new Chart(cv, {
+    rows.forEach(r=> r.share = r.pct);  // pie labels use the same %
+    charts.main = new Chart(cv, {
       type:"pie",
       data:{ labels, datasets:[{ data:values, backgroundColor:colors, borderColor:"#fff", borderWidth:1.5 }]},
       options:{ responsive:true, maintainAspectRatio:false,
         plugins:{ legend:{ display: rows.length<=16, position:"right", labels:{boxWidth:12, padding:7, font:{size:11}} },
-          tooltip:{ callbacks:{ label:c=>` ${c.label}:` + tip(c.dataIndex) } } } }
+          tooltip:{ callbacks:{ label:c=>` ${c.label}: ${fmt(rows[c.dataIndex].value)} u (${rows[c.dataIndex].pct.toFixed(1)}%)` } } } },
+      plugins:[ pieLabelPlugin(rows) ]
     });
   }
+}
+
+function drawSplitPie(canvasId, key, baseRecs){
+  const rows = totalsBy(baseRecs, key, state.qty);
+  const cv = document.getElementById(canvasId);
+  if(charts[key]){ charts[key].destroy(); charts[key] = null; }
+  charts[key] = new Chart(cv, {
+    type:"doughnut",
+    data:{ labels:rows.map(r=>r.label),
+           datasets:[{ data:rows.map(r=>r.value), backgroundColor:rows.map((_,i)=>colorFor(i)), borderColor:"#fff", borderWidth:2 }]},
+    options:{ responsive:true, maintainAspectRatio:false, cutout:"55%",
+      plugins:{ legend:{ position:"bottom", labels:{ boxWidth:12, padding:9, font:{size:12} } },
+        tooltip:{ callbacks:{ label:c=>` ${c.label}: ${fmt(rows[c.dataIndex].value)} u (${rows[c.dataIndex].share.toFixed(1)}%)` } } },
+    },
+    plugins:[ pieLabelPlugin(rows) ]
+  });
 }
 
 function drawTable(rows, metricTotal, compraBase){
@@ -252,7 +321,7 @@ function drawTable(rows, metricTotal, compraBase){
 }
 
 // wire up
-if(!HAS_CAT) document.getElementById("catRow").remove();
+if(!HAS_CAT){ document.getElementById("catRow").remove(); document.getElementById("catPieCard").remove(); }
 buildFilterGroup("genBtns","gender","Todos");
 if(HAS_CAT) buildFilterGroup("catBtns","categoria","Todas");
 buildQtyGroup();
