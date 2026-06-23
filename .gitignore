@@ -1,0 +1,13 @@
+# Excel source — NOT published (keeps raw order data out of the public repo)
+PRELINE ASICS S1-27 footwear.xlsx
+~$*.xlsx
+
+# Plaintext dashboard produced by build.py — must never be published
+site/app.html
+
+# Python
+__pycache__/
+*.pyc
+
+# Local Claude Code / editor config — not part of the published site
+.claude/
