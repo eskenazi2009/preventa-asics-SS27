@@ -233,7 +233,8 @@ function render(){
 
   // ---- KPI tiles ----
   const metricTotal = rows.reduce((s,r)=>s+r.value,0);
-  const pctOfOrder = metricTotal / (GRAND[state.qty] || 1) * 100;
+  // always against the TOTAL ORDER quantity (total Compra), for every metric
+  const pctOfOrder = metricTotal / (GRAND.compra || 1) * 100;
   document.getElementById("tTotal").textContent = fmt(metricTotal);
   document.getElementById("tMetric").innerHTML =
       `${QTY_LABEL[state.qty]} · <span class="pctbig">${pctOfOrder.toFixed(1)}%</span> del total`;
