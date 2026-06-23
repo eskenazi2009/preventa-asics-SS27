@@ -15,26 +15,41 @@
   .hdr h1 span{ color:#ffd34d; }
   .sub{ margin:4px 0 0; opacity:.85; font-size:14px; }
   .wrap{ max-width:1080px; margin:0 auto; padding:20px; }
-  .controls{ display:flex; flex-wrap:wrap; gap:22px; margin-bottom:18px; }
-  .ctl-lbl{ display:block; font-size:12px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); margin-bottom:7px; }
-  .btns{ display:inline-flex; background:#fff; border:1px solid var(--line); border-radius:10px; padding:4px; gap:4px; }
-  .btns button{ border:0; background:transparent; padding:9px 16px; border-radius:7px; font-size:14px; font-weight:600; color:var(--muted); cursor:pointer; transition:.15s; }
+
+  .card{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px 20px; margin-bottom:18px; box-shadow:0 1px 2px rgba(20,30,60,.04); }
+  .filters .frow{ display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px; }
+  .filters .frow:last-child{ margin-bottom:0; }
+  .flbl{ width:84px; flex:0 0 84px; font-size:12px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); font-weight:600; }
+  .btns{ display:inline-flex; flex-wrap:wrap; background:#f0f3f8; border:1px solid var(--line); border-radius:10px; padding:4px; gap:4px; }
+  .btns button{ border:0; background:transparent; padding:8px 14px; border-radius:7px; font-size:14px; font-weight:600; color:var(--muted); cursor:pointer; transition:.15s; }
   .btns button:hover{ color:var(--ink); }
   .btns button.on{ background:var(--blue); color:#fff; box-shadow:0 1px 3px rgba(11,44,111,.3); }
-  .card{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px 20px; margin-bottom:18px; box-shadow:0 1px 2px rgba(20,30,60,.04); }
-  .card-head{ display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:6px; }
+  .btns.small button{ padding:6px 12px; font-size:13px; }
+  #search{ flex:1; min-width:160px; padding:9px 12px; border:1px solid var(--line); border-radius:9px; font-size:14px; }
+  #search:focus{ outline:none; border-color:var(--blue); box-shadow:0 0 0 3px rgba(23,99,182,.15); }
+  .reset{ border:1px solid var(--line); background:#fff; color:var(--muted); padding:9px 16px; border-radius:9px; font-size:14px; font-weight:600; cursor:pointer; }
+  .reset:hover{ color:var(--ink); border-color:var(--muted); }
+
+  .tiles{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:18px; }
+  .tile{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 16px; box-shadow:0 1px 2px rgba(20,30,60,.04); }
+  .tile .tlbl{ display:block; font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); font-weight:600; }
+  .tile b{ display:block; font-size:26px; color:var(--navy); line-height:1.25; margin-top:2px; }
+  .tile small{ color:var(--muted); font-size:12px; }
+
+  .card-head{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
   .card-head h2{ margin:0; font-size:18px; }
-  .total{ font-size:14px; color:var(--muted); }
-  .total b{ font-size:20px; color:var(--navy); }
-  .chart-box{ position:relative; height:380px; }
+  .chart-scroll{ max-height:72vh; overflow-y:auto; }
+  .chart-box{ position:relative; }
+
   table{ width:100%; border-collapse:collapse; font-size:14px; }
   th,td{ padding:9px 8px; border-bottom:1px solid var(--line); }
   th{ font-size:12px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); font-weight:600; }
   .l{ text-align:left; } .r{ text-align:right; font-variant-numeric:tabular-nums; }
   tfoot td{ font-weight:700; border-bottom:0; border-top:2px solid var(--line); }
   .dot{ display:inline-block; width:11px; height:11px; border-radius:3px; }
+  .empty{ color:var(--muted); font-size:14px; padding:30px 0; text-align:center; }
   .ft{ text-align:center; color:var(--muted); font-size:12px; padding:10px 0 30px; }
-  @media(max-width:560px){ .chart-box{ height:320px; } .hdr h1{ font-size:22px; } }
+  @media(max-width:620px){ .tiles{ grid-template-columns:1fr; } .hdr h1{ font-size:22px; } .flbl{ width:100%; flex-basis:100%; } }
 </style>
 </head>
 <body>
@@ -46,42 +61,39 @@
   </header>
 
   <main class="wrap">
-    <section class="controls">
-      <div class="ctl">
-        <span class="ctl-lbl">Cantidad</span>
-        <div class="btns" id="qtyBtns">
-          <button data-qty="compra" class="on">Compra</button>
-          <button data-qty="extra">Extra</button>
-          <button data-qty="cancel">Cancel</button>
-        </div>
+    <section class="filters card">
+      <div class="frow"><span class="flbl">Género</span><div class="btns" id="genBtns"></div></div>
+      <div class="frow" id="catRow"><span class="flbl">Categoría</span><div class="btns" id="catBtns"></div></div>
+      <div class="frow"><span class="flbl">Métrica</span><div class="btns" id="qtyBtns"></div></div>
+      <div class="frow">
+        <input id="search" type="search" placeholder="Buscar modelo…" autocomplete="off">
+        <button id="reset" class="reset" type="button">Reset filtros</button>
       </div>
-      <div class="ctl">
-        <span class="ctl-lbl">Ver por</span>
-        <div class="btns" id="dimBtns">
-          <button data-dim="gender" class="on">Género</button>
-          <button data-dim="categoria">Categoría</button>
-          <button data-dim="modelo">Modelo</button>
-        </div>
-      </div>
+    </section>
+
+    <section class="tiles">
+      <div class="tile"><span class="tlbl">Total unidades</span><b id="tTotal">0</b><small id="tMetric">Compra</small></div>
+      <div class="tile"><span class="tlbl">Modelos</span><b id="tModels">0</b><small>en la selección</small></div>
+      <div class="tile"><span class="tlbl">Top modelo</span><b id="tTop">—</b><small id="tTopPct"></small></div>
     </section>
 
     <section class="card">
       <div class="card-head">
-        <h2 id="chartTitle">Por género</h2>
-        <div class="total">Total <b id="totalVal">0</b> <span>unidades</span></div>
+        <h2 id="chartTitle">Por modelo</h2>
+        <div class="btns small" id="chartToggle">
+          <button data-chart="bar" class="on">Barras</button>
+          <button data-chart="pie">Pastel</button>
+        </div>
       </div>
-      <div class="chart-box"><canvas id="pie"></canvas></div>
+      <div class="chart-scroll"><div class="chart-box" id="chartBox"><canvas id="chart"></canvas></div></div>
+      <div class="empty" id="emptyMsg" style="display:none">Sin resultados para esta selección.</div>
     </section>
 
     <section class="card">
       <table id="tbl">
-        <thead>
-          <tr><th>&nbsp;</th><th class="l" id="thLabel">Categoría</th><th class="r">Unidades</th><th class="r">%</th></tr>
-        </thead>
+        <thead><tr><th>&nbsp;</th><th class="l">Modelo</th><th class="r">Unidades</th><th class="r" id="pctHead">%</th></tr></thead>
         <tbody></tbody>
-        <tfoot>
-          <tr><td></td><td class="l">Total</td><td class="r" id="tfVal">0</td><td class="r">100%</td></tr>
-        </tfoot>
+        <tfoot><tr><td></td><td class="l">Total selección</td><td class="r" id="tfVal">0</td><td class="r" id="tfPct">100%</td></tr></tfoot>
       </table>
     </section>
 
@@ -94,82 +106,174 @@
 const RECORDS = /*__DATA_JSON__*/[]/*__END_DATA__*/;
 const HAS_CAT = /*__HAS_CAT__*/true/*__END_HAS_CAT__*/;
 
-// hide the Categoría button if the source has no category column
-if(!HAS_CAT){
-  const b = document.querySelector('#dimBtns button[data-dim="categoria"]');
-  if(b) b.remove();
-}
-
-const DIM = { gender:"Género", categoria:"Categoría", modelo:"Modelo" };
-const TOP_N = 12; // collapse the long Modelo tail into "Otros" so the pie stays readable
-let state = { qty:"compra", dim:"gender" };
+const QTY_LABEL = { compra:"Compra", extra:"Extra", cancel:"Cancel" };
+const state = { gender:null, categoria:null, qty:"compra", chart:"bar", search:"" };
 let chart = null;
 const fmt = n => n.toLocaleString("es-MX");
-
-function group(records, dimKey, qtyKey){
-  const m = new Map();
-  for(const r of records){
-    const k = r[dimKey] || "—";
-    m.set(k, (m.get(k)||0) + (r[qtyKey]||0));
-  }
-  let rows = [...m.entries()].map(([label,value])=>({label,value}))
-              .filter(r=>r.value>0).sort((a,b)=>b.value-a.value);
-  const total = rows.reduce((s,r)=>s+r.value,0);
-  rows.forEach(r=> r.pct = total? r.value/total*100 : 0);
-  return { rows, total };
-}
 
 const BASE = ["#0b2c6f","#1763b6","#39a0ed","#e4002b","#f5a623","#16a085",
               "#8e44ad","#2c3e50","#e67e22","#27ae60","#c0392b","#5d6d7e"];
 const colorFor = i => i<BASE.length ? BASE[i] : `hsl(${(i*47)%360} 60% 50%)`;
 
-function pieData(rows, total){
-  if(state.dim==="modelo" && rows.length>TOP_N){
-    const head = rows.slice(0,TOP_N), tail = rows.slice(TOP_N);
-    const otros = tail.reduce((s,r)=>s+r.value,0);
-    return [...head, {label:`Otros (${tail.length})`, value:otros, pct: total?otros/total*100:0}];
+// distinct values (ordered by total Compra desc) for building filter buttons
+function distinct(key){
+  const m = new Map();
+  for(const r of RECORDS){ m.set(r[key], (m.get(r[key])||0) + (r.compra||0)); }
+  return [...m.entries()].sort((a,b)=>b[1]-a[1]).map(e=>e[0]);
+}
+
+function buildFilterGroup(elId, key, allLabel){
+  const el = document.getElementById(elId);
+  const opts = [{val:null, label:allLabel}, ...distinct(key).map(v=>({val:v, label:v}))];
+  el.innerHTML = "";
+  for(const o of opts){
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = o.label;
+    b.classList.toggle("on", state[key]===o.val);
+    b.addEventListener("click", ()=>{
+      state[key] = o.val;
+      [...el.children].forEach(c=>c.classList.remove("on"));
+      b.classList.add("on");
+      render();
+    });
+    el.appendChild(b);
   }
-  return rows;
+}
+
+function buildQtyGroup(){
+  const el = document.getElementById("qtyBtns");
+  el.innerHTML = "";
+  for(const q of ["compra","extra","cancel"]){
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = QTY_LABEL[q];
+    b.classList.toggle("on", state.qty===q);
+    b.addEventListener("click", ()=>{
+      state.qty = q;
+      [...el.children].forEach(c=>c.classList.remove("on"));
+      b.classList.add("on");
+      render();
+    });
+    el.appendChild(b);
+  }
+}
+
+// records after gender + categoria filters (search NOT applied here)
+function filtered(){
+  return RECORDS.filter(r =>
+    (state.gender===null || r.gender===state.gender) &&
+    (state.categoria===null || r.categoria===state.categoria));
+}
+
+function modelTotals(recs, qty){
+  const m = new Map();
+  for(const r of recs){ m.set(r.modelo, (m.get(r.modelo)||0) + (r[qty]||0)); }
+  return [...m.entries()].map(([label,value])=>({label,value}))
+          .filter(r=>r.value>0).sort((a,b)=>b.value-a.value);
 }
 
 function render(){
-  const { rows, total } = group(RECORDS, state.dim, state.qty);
-  const disp = pieData(rows, total);
-  document.getElementById("chartTitle").textContent = "Por " + DIM[state.dim].toLowerCase();
-  document.getElementById("thLabel").textContent = DIM[state.dim];
-  document.getElementById("totalVal").textContent = fmt(total);
-  document.getElementById("tfVal").textContent = fmt(total);
+  const base = filtered();
+  // % base = total ORDER quantity (Compra) of the current filter:
+  //   Compra tab  -> rows sum to 100% within selection
+  //   Extra/Cancel tab -> shown against the total order quantity
+  const compraBase = base.reduce((s,r)=>s+(r.compra||0),0) || 1;
 
-  const labels = disp.map(r=>r.label), values = disp.map(r=>r.value), colors = disp.map((_,i)=>colorFor(i));
-  if(chart) chart.destroy();
-  chart = new Chart(document.getElementById("pie"), {
-    type:"pie",
-    data:{ labels, datasets:[{ data:values, backgroundColor:colors, borderColor:"#fff", borderWidth:2 }]},
-    options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{
-        legend:{ position:"right", labels:{ boxWidth:14, padding:9, font:{size:12} } },
-        tooltip:{ callbacks:{ label:c=>{ const v=c.parsed, p=total?v/total*100:0; return ` ${c.label}: ${fmt(v)} (${p.toFixed(1)}%)`; } } }
-      }
-    }
-  });
+  let rows = modelTotals(base, state.qty);
+  rows.forEach(r=> r.pct = r.value/compraBase*100);
 
+  // summary tiles reflect the gender/categoria filter (not the search box)
+  const metricTotal = rows.reduce((s,r)=>s+r.value,0);
+  document.getElementById("tTotal").textContent = fmt(metricTotal);
+  document.getElementById("tMetric").textContent = QTY_LABEL[state.qty]
+      + (state.qty==="compra" ? "" : " · % del total ordenado");
+  document.getElementById("tModels").textContent = rows.length;
+  document.getElementById("tTop").textContent = rows[0] ? rows[0].label : "—";
+  document.getElementById("tTopPct").textContent = rows[0]
+      ? `${fmt(rows[0].value)} u · ${rows[0].pct.toFixed(1)}%` : "";
+
+  // search only narrows the chart + table display
+  const q = state.search.trim().toLowerCase();
+  const disp = q ? rows.filter(r=>r.label.toLowerCase().includes(q)) : rows;
+
+  document.getElementById("chartTitle").textContent =
+      "Por modelo — " + QTY_LABEL[state.qty];
+  document.getElementById("pctHead").textContent =
+      state.qty==="compra" ? "% selección" : "% del total ordenado";
+
+  drawChart(disp);
+  drawTable(disp, metricTotal, compraBase);
+}
+
+function drawChart(rows){
+  const box = document.getElementById("chartBox");
+  const cv = document.getElementById("chart");
+  const empty = document.getElementById("emptyMsg");
+  if(chart){ chart.destroy(); chart = null; }
+  if(rows.length===0){ empty.style.display="block"; cv.style.display="none"; box.style.height="0px"; return; }
+  empty.style.display="none"; cv.style.display="block";
+
+  const labels = rows.map(r=>r.label);
+  const values = rows.map(r=>r.value);
+  const colors = rows.map((_,i)=>colorFor(i));
+  const tip = (i)=>` ${fmt(values[i])} u (${rows[i].pct.toFixed(1)}%)`;
+
+  if(state.chart==="bar"){
+    box.style.height = Math.max(300, rows.length*26 + 30) + "px";
+    chart = new Chart(cv, {
+      type:"bar",
+      data:{ labels, datasets:[{ data:values, backgroundColor:colors, borderRadius:4 }]},
+      options:{ indexAxis:"y", responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false},
+          tooltip:{ callbacks:{ label:c=>tip(c.dataIndex) } } },
+        scales:{ x:{ beginAtZero:true, ticks:{ font:{size:11} } },
+                 y:{ ticks:{ font:{size:11}, autoSkip:false } } } }
+    });
+  } else {
+    box.style.height = "460px";
+    chart = new Chart(cv, {
+      type:"pie",
+      data:{ labels, datasets:[{ data:values, backgroundColor:colors, borderColor:"#fff", borderWidth:1.5 }]},
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display: rows.length<=16, position:"right", labels:{boxWidth:12, padding:7, font:{size:11}} },
+          tooltip:{ callbacks:{ label:c=>` ${c.label}:` + tip(c.dataIndex) } } } }
+    });
+  }
+}
+
+function drawTable(rows, metricTotal, compraBase){
   document.querySelector("#tbl tbody").innerHTML = rows.map((r,i)=>`
     <tr><td><span class="dot" style="background:${colorFor(i)}"></span></td>
-    <td class="l">${r.label}</td><td class="r">${fmt(r.value)}</td><td class="r">${r.pct.toFixed(1)}%</td></tr>`).join("");
+    <td class="l">${r.label}</td><td class="r">${fmt(r.value)}</td>
+    <td class="r">${r.pct.toFixed(1)}%</td></tr>`).join("");
+  document.getElementById("tfVal").textContent = fmt(metricTotal);
+  document.getElementById("tfPct").textContent = (metricTotal/compraBase*100).toFixed(1) + "%";
 }
 
-function wire(groupId, key, attr){
-  document.querySelectorAll(`#${groupId} button`).forEach(b=>{
-    b.addEventListener("click", ()=>{
-      document.querySelectorAll(`#${groupId} button`).forEach(x=>x.classList.remove("on"));
-      b.classList.add("on");
-      state[key] = b.dataset[attr];
-      render();
-    });
+// wire up
+if(!HAS_CAT) document.getElementById("catRow").remove();
+buildFilterGroup("genBtns","gender","Todos");
+if(HAS_CAT) buildFilterGroup("catBtns","categoria","Todas");
+buildQtyGroup();
+
+document.querySelectorAll("#chartToggle button").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    document.querySelectorAll("#chartToggle button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    state.chart = b.dataset.chart;
+    render();
   });
-}
-wire("qtyBtns","qty","qty");
-wire("dimBtns","dim","dim");
+});
+document.getElementById("search").addEventListener("input", e=>{ state.search = e.target.value; render(); });
+document.getElementById("reset").addEventListener("click", ()=>{
+  state.gender = null; state.categoria = null; state.search = "";
+  document.getElementById("search").value = "";
+  buildFilterGroup("genBtns","gender","Todos");
+  if(HAS_CAT) buildFilterGroup("catBtns","categoria","Todas");
+  render();
+});
+
 render();
 </script>
 </body>
