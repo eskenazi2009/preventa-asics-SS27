@@ -39,8 +39,14 @@
 
   .card-head{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
   .card-head h2{ margin:0; font-size:18px; }
-  .chart-scroll{ max-height:72vh; overflow-y:auto; }
+  .chart-row{ display:flex; gap:16px; align-items:flex-start; }
+  .chart-scroll{ flex:1; min-width:0; max-height:72vh; overflow-y:auto; }
   .chart-box{ position:relative; }
+  .chart-legend{ flex:0 0 220px; max-height:72vh; overflow-y:auto; font-size:13px; border-left:1px solid var(--line); padding-left:14px; }
+  .leg-row{ display:flex; align-items:center; gap:8px; padding:4px 0; }
+  .leg-row .dot{ flex:0 0 11px; }
+  .leg-name{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .leg-pct{ flex:0 0 auto; font-variant-numeric:tabular-nums; font-weight:600; color:var(--navy); }
 
   .splitgrid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
   .splitgrid h3{ margin:0 0 10px; font-size:16px; }
@@ -54,6 +60,7 @@
   .dot{ display:inline-block; width:11px; height:11px; border-radius:3px; }
   .empty{ color:var(--muted); font-size:14px; padding:30px 0; text-align:center; }
   .ft{ text-align:center; color:var(--muted); font-size:12px; padding:10px 0 30px; }
+  @media(max-width:760px){ .chart-row{ flex-direction:column; } .chart-legend{ flex:1 1 auto; width:100%; max-height:240px; border-left:0; padding-left:0; border-top:1px solid var(--line); padding-top:12px; } }
   @media(max-width:620px){ .tiles{ grid-template-columns:1fr; } .splitgrid{ grid-template-columns:1fr; } .hdr h1{ font-size:22px; } .flbl{ width:100%; flex-basis:100%; } }
 </style>
 </head>
@@ -90,7 +97,10 @@
           <button data-chart="pie">Pastel</button>
         </div>
       </div>
-      <div class="chart-scroll"><div class="chart-box" id="chartBox"><canvas id="chart"></canvas></div></div>
+      <div class="chart-row">
+        <div class="chart-scroll"><div class="chart-box" id="chartBox"><canvas id="chart"></canvas></div></div>
+        <aside class="chart-legend" id="chartLegend"></aside>
+      </div>
       <div class="empty" id="emptyMsg" style="display:none">Sin resultados para esta selección.</div>
     </section>
 
@@ -250,6 +260,7 @@ function render(){
   document.getElementById("pctHead").textContent =
       state.qty==="compra" ? "% selección" : "% del total ordenado";
   drawMainChart(disp);
+  drawLegend(disp);
   drawTable(disp, metricTotal, compraBase);
 
   // ---- split pies (reflect the active filter + metric) ----
@@ -310,6 +321,15 @@ function drawSplitPie(canvasId, key, baseRecs){
     },
     plugins:[ pieLabelPlugin(rows) ]
   });
+}
+
+function drawLegend(rows){
+  document.getElementById("chartLegend").innerHTML = rows.map((r,i)=>`
+    <div class="leg-row" title="${r.label}: ${fmt(r.value)} u (${r.pct.toFixed(1)}%)">
+      <span class="dot" style="background:${colorFor(i)}"></span>
+      <span class="leg-name">${r.label}</span>
+      <span class="leg-pct">${r.pct.toFixed(1)}%</span>
+    </div>`).join("");
 }
 
 function drawTable(rows, metricTotal, compraBase){
